@@ -42,4 +42,10 @@ class IRImageDataset(Dataset):
         low_tensor = self.transform(low_img)
         high_tensor = self.transform(high_img)
 
-        return {'low_res': low_tensor, 'high_res': high_tensor}
+        return 
+        {
+            'low_res': low_tensor,
+            'high_res': high_tensor,
+            'low_path': str(low_path),
+            'high_path': str(high_path)
+        }

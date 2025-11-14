@@ -10,12 +10,13 @@ Output torch Tensors [-1,1]
 """
 
 
-
-IMAGE_SIZE = 256        # default, can be overridden by configration 
+# IMAGE resolution
+IMAGE_HEIGHT = 256
+IMAGE_WIDTH = 512      # default, can be overridden by configration 
 
 # Basic Transformation Pipeline
 transform_pipeline = transforms.Compose ([ 
-    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    transforms.Resize((IMAGE_HEIGHT, IMAGE_WIDTH)),
     transforms.RandomHorizontalFlip(),
     transforms.RandomRotation(10),      # 10 Degrees Rotation 
     transforms.ToTensor(),
@@ -25,7 +26,7 @@ transform_pipeline = transforms.Compose ([
 
 # Optional Augmentation Pipeline
 augment_pipleine = transforms.Compose ([ 
-    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    transforms.Resize((IMAGE_HEIGHT, IMAGE_WIDTH)),
     transforms.RandomHorizontalFlip(),
     transforms.RandomRotation(10),      # 10 Degrees Rotation
     transforms.ToTensor(),
