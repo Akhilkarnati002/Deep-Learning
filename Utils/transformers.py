@@ -11,7 +11,7 @@ Output torch Tensors [-1,1]
 
 
 
-IMAGE_SIZE = 256        # default, can be overridden by config
+IMAGE_SIZE = 256        # default, can be overridden by configration 
 
 # Basic Transformation Pipeline
 transform_pipeline = transforms.Compose ([ 
