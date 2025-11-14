@@ -25,7 +25,7 @@ transform_pipeline = transforms.Compose ([
     ])
 
 # Optional Augmentation Pipeline
-augment_pipleine = transforms.Compose ([ 
+augment_pipeline = transforms.Compose ([ 
     transforms.Resize((IMAGE_HEIGHT, IMAGE_WIDTH)),
     transforms.RandomHorizontalFlip(),
     transforms.RandomRotation(10),      # 10 Degrees Rotation

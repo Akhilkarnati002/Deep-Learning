@@ -14,9 +14,10 @@ class IRImageDataset(Dataset):
     """
 
     def __init__(self, low_dir, high_dir, transform= transform_pipeline, paired = False):
-        self.low_paths = sorted([p for p in Path(low_dir).glob ('*') if p.suffix in ['png', 'jpg', 'jpeg']])
-        self.high_paths = sorted([p for p in Path(high_dir).glob ('*') if p.suffix in ['png', 'jpg', 'jpeg']])
-        assert len(self.low_paths) > 0 and len(self.high_paths) > 0, "Data Folder must Be Empty"
+        allowed_exts = {'png', 'jpg', 'jpeg', 'tif', 'tiff'}
+        self.low_paths = sorted([p for p in Path(low_dir).glob('*') if p.suffix.lower().lstrip('.') in allowed_exts])
+        self.high_paths = sorted([p for p in Path(high_dir).glob('*') if p.suffix.lower().lstrip('.') in allowed_exts])
+        assert len(self.low_paths) > 0 and len(self.high_paths) > 0, "Data folders must not be empty"
 
         self.transform = transform
         self.paired = paired
@@ -38,12 +39,11 @@ class IRImageDataset(Dataset):
             high_path = random.choice(self.high_paths)
         high_img = Image.open(high_path).convert('L')   # single channel IR
 
-        #Applying Transformers
+        # Applying transformers
         low_tensor = self.transform(low_img)
         high_tensor = self.transform(high_img)
 
-        return 
-        {
+        return {
             'low_res': low_tensor,
             'high_res': high_tensor,
             'low_path': str(low_path),
