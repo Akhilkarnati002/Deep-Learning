@@ -10,7 +10,7 @@ from  .transformers import transform_pipeline
 class IRImageDataset(Dataset):
     """
     Dataset class for loading Low_Resolution and High_Resolution IR images
-    Supports paired and unpaired datasets.
+    Supports paired and unpaired datasets .
     """
 
     def __init__(self, low_dir, high_dir, transform= transform_pipeline, paired = False):

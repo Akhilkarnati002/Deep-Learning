@@ -11,8 +11,8 @@ Output torch Tensors [-1,1]
 
 
 # IMAGE resolution
-IMAGE_HEIGHT = 256
-IMAGE_WIDTH = 512      # default, can be overridden by configration 
+IMAGE_HEIGHT = 256      # default, can be overridden by configration if needed to be changed in future
+IMAGE_WIDTH = 512      # default, can be overridden by configration if needed to be changed in future
 
 # Basic Transformation Pipeline
 transform_pipeline = transforms.Compose ([ 
