@@ -86,23 +86,61 @@ class CUTTrainer:
 # Run training directly
 # --------------------------------------------------------------------
 if __name__ == "__main__":
+    import argparse
+    import os
+
+    parser = argparse.ArgumentParser(description="Train CUT model")
+    parser.add_argument("--low", help="Low resolution data folder", default="Data/Low_resolution/CFRP_60_low")
+    parser.add_argument("--high", help="High resolution data folder", default="Data/High_resolution/CFRP_60_high")
+    parser.add_argument("--paired", action="store_true", help="Use paired dataset (default: False)")
+    parser.add_argument("--batch-size", type=int, default=4)
+    parser.add_argument("--lr", type=float, default=0.0002)
+    parser.add_argument("--num-epochs", type=int, default=50)
+    parser.add_argument("--num-workers", type=int, default=4)
+    parser.add_argument("--dry-run", action="store_true", help="Only instantiate trainer and print diagnostics, don't run training")
+
+    args = parser.parse_args()
+
     config = {
         "data": {
-            "low_res_dir": "data/low_res",
-            "high_res_dir": "data/high_res",
-            "paired": True
+            "low_res_dir": args.low,
+            "high_res_dir": args.high,
+            "paired": args.paired,
         },
         "training": {
-            "batch_size": 4,
-            "lr": 0.0002,
-            "num_epochs": 50,
-            "num_workers": 4
+            "batch_size": args.batch_size,
+            "lr": args.lr,
+            "num_epochs": args.num_epochs,
+            "num_workers": args.num_workers,
         },
         "cut": {
             "lambda_NCE": 1.0,
-            "num_patches": 256
-        }
+            "num_patches": 256,
+        },
     }
 
-    trainer = CUTTrainer(config)
-    trainer.train()
+    def count_files(path):
+        try:
+            return sum(1 for _ in os.listdir(path) if os.path.isfile(os.path.join(path, _)))
+        except Exception:
+            return 0
+
+    print("Dataset paths:")
+    print("  low:", config["data"]["low_res_dir"], "-> files:", count_files(config["data"]["low_res_dir"]))
+    print("  high:", config["data"]["high_res_dir"], "-> files:", count_files(config["data"]["high_res_dir"]))
+
+    if args.dry_run:
+        # perform a quick dataset/dataloader sanity check without constructing the model
+        from Utils.dataset import IRImageDataset
+        from Utils.transformers import transform_pipeline
+
+        ds = IRImageDataset(low_dir=config["data"]["low_res_dir"],
+                            high_dir=config["data"]["high_res_dir"],
+                            transform=transform_pipeline,
+                            paired=config["data"].get("paired", False))
+        print("Dry-run: dataset length:", len(ds))
+        sample = ds[0]
+        print("Dry-run: sample keys:", list(sample.keys()))
+    else:
+        trainer = CUTTrainer(config)
+        trainer.train()
