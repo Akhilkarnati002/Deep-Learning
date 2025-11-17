@@ -7,24 +7,21 @@ import torch.nn.functional as F
 # Helper Block
 
 class ResentBlock(nn.Module):
-    """
-    Residual Block with two convolutional layers and skip connection.
-    """
+    """Residual Block with two convolutional layers and skip connection."""
 
-    def __init__(self,dim):
+    def __init__(self, dim):
         super().__init__()
-        self.conv_block = nn.Sequential
-        (nn.ReflectionPad2d(1),
-         nn.Conv2d(dim,dim,kernel_size=3,stride=1,padding=0),
-         nn.InstanceNorm2d(dim),
-         nn.ReLU(inplace=True),
-         nn.ReflectionPad2d(1),
-         nn.Conv2d(dim,dim,kernel_size=3,stride=1,padding=0),
-         nn.InstanceNorm2d(dim)
-         )
+        self.conv_block = nn.Sequential(
+            nn.ReflectionPad2d(1),
+            nn.Conv2d(dim, dim, kernel_size=3, stride=1, padding=0),
+            nn.InstanceNorm2d(dim),
+            nn.ReLU(inplace=True),
+            nn.ReflectionPad2d(1),
+            nn.Conv2d(dim, dim, kernel_size=3, stride=1, padding=0),
+            nn.InstanceNorm2d(dim),
+        )
 
-
-    def forward(self,x):
+    def forward(self, x):
         return x + self.conv_block(x)  # skip connection
     
 

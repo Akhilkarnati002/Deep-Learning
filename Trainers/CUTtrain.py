@@ -31,27 +31,11 @@ class CUTTrainer:
         )
 
         # -----------------------------
-        # Initialize CUT Model
+        # Initialize CUT Model (model manages its own device/optimizers)
         # -----------------------------
-        self.model = CUTModel(config).to(self.device)
+        self.model = CUTModel(config)
 
-        # -----------------------------
-        # Optimizers
-        # -----------------------------
-        lr = config["training"]["lr"]
-
-        self.optimizer_G = torch.optim.Adam(
-            self.model.generator.parameters(),
-            lr=lr,
-            betas=(0.5, 0.999)
-        )
-
-        self.optimizer_D = torch.optim.Adam(
-            self.model.discriminator.parameters(),
-            lr=lr,
-            betas=(0.5, 0.999)
-        )
-
+        # number of epochs
         self.num_epochs = config["training"]["num_epochs"]
 
     # --------------------------------------------------------------------
@@ -62,24 +46,26 @@ class CUTTrainer:
         for epoch in range(self.num_epochs):
             for batch in self.dataloader:
 
-                low = batch["low_res"].to(self.device)
-                high = batch["high_res"].to(self.device)
+                low = batch["low_res"].to(self.model.device)
+                high = batch["high_res"].to(self.model.device)
 
-                # ---- Train Generator ----
-                self.optimizer_G.zero_grad()
-                losses_G = self.model.compute_G_loss(low, high)
-                losses_G["G_total"].backward()
-                self.optimizer_G.step()
+                # Feed inputs to model (CUTModel expects keys 'A' and 'B')
+                input_dict = {
+                    'A': low,
+                    'B': high,
+                    'A_paths': batch.get('low_path'),
+                    'B_paths': batch.get('high_path')
+                }
+                self.model.set_input(input_dict)
 
-                # ---- Train Discriminator ----
-                self.optimizer_D.zero_grad()
-                losses_D = self.model.compute_D_loss(low, high)
-                losses_D["D_total"].backward()
-                self.optimizer_D.step()
+                # Run a training step using model's API
+                self.model.optimize_parameters()
 
-            print(f"Epoch [{epoch+1}/{self.num_epochs}] "
-                  f"G_loss: {losses_G['G_total'].item():.4f}, "
-                  f"D_loss: {losses_D['D_total'].item():.4f}")
+            # after epoch, collect and print current losses (may be last batch's values)
+            losses = self.model.get_current_losses()
+            g_loss = losses.get('G', losses.get('G_GAN', 0.0))
+            d_loss = losses.get('D_real', 0.0) + losses.get('D_fake', 0.0)
+            print(f"Epoch [{epoch+1}/{self.num_epochs}] G_loss: {g_loss:.4f}, D_loss: {d_loss:.4f}")
 
 
 # --------------------------------------------------------------------
@@ -129,7 +115,7 @@ if __name__ == "__main__":
     print("  low:", config["data"]["low_res_dir"], "-> files:", count_files(config["data"]["low_res_dir"]))
     print("  high:", config["data"]["high_res_dir"], "-> files:", count_files(config["data"]["high_res_dir"]))
 
-    if args.dry_run:
+    if args.dry_run :
         # perform a quick dataset/dataloader sanity check without constructing the model
         from Utils.dataset import IRImageDataset
         from Utils.transformers import transform_pipeline
@@ -141,6 +127,9 @@ if __name__ == "__main__":
         print("Dry-run: dataset length:", len(ds))
         sample = ds[0]
         print("Dry-run: sample keys:", list(sample.keys()))
+
+        trainer = CUTTrainer(config)
+        trainer.train()
     else:
         trainer = CUTTrainer(config)
         trainer.train()
