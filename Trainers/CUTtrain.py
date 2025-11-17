@@ -91,5 +91,5 @@ if __name__ == "__main__":
     "num_patches": 256,
     }
 
-    trainer = CUTTrainer(config)
+    trainer = CUTtrainer(config)
     trainer.train()
