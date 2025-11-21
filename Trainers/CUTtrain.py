@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
+from types import SimpleNamespace
 
 from Utils.dataset import IRImageDataset
 from Utils.transformers import transform_pipeline
@@ -12,7 +13,7 @@ class CUTTrainer:
     def __init__(self, config):
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+        print(f"Using device: {self.device}")
         # -----------------------------
         # Load Dataset
         # -----------------------------
@@ -31,18 +32,67 @@ class CUTTrainer:
         )
 
         # -----------------------------
-        # Initialize CUT Model (model manages its own device/optimizers)
+        # Initialize CUT Model (adapt dict config to CUTModel opt object)
         # -----------------------------
-        self.model = CUTModel(config)
+        cut_opt = self._build_cut_opt(config)
+        self.model = CUTModel(cut_opt)
 
         # number of epochs
         self.num_epochs = config["training"]["num_epochs"]
+
+    def _build_cut_opt(self, config):
+        """
+        Convert nested `config` dict into an attribute-style `opt`
+        object expected by `CUTModel`.
+
+        Expected `config` structure (with reasonable defaults):
+            config["model"]: channels and base nets
+            config["training"]: lr, betas, epochs, etc.
+            config["cut"]: CUT-specific hyperparameters
+        """
+        model_cfg = config.get("model", {})
+        train_cfg = config.get("training", {})
+        cut_cfg = config.get("cut", {})
+
+        opt = SimpleNamespace()
+
+        # GPU / device
+        if torch.cuda.is_available():
+            opt.gpu_ids = cut_cfg.get("gpu_ids", [0])
+        else:
+            opt.gpu_ids = []
+
+        # Generator / discriminator channels
+        opt.input_nc = model_cfg.get("input_nc", 1)
+        opt.output_nc = model_cfg.get("output_nc", 1)
+        opt.ngf = model_cfg.get("ngf", 64)
+        opt.ndf = model_cfg.get("ndf", 64)
+
+        # Training hyperparameters
+        opt.lr = train_cfg.get("lr", 2e-4)
+        opt.beta1 = train_cfg.get("beta1", 0.5)
+        opt.beta2 = train_cfg.get("beta2", 0.999)
+
+        # CUT / loss hyperparameters
+        opt.lambda_GAN = cut_cfg.get("lambda_GAN", 1.0)
+        opt.lambda_NCE = cut_cfg.get("lambda_NCE", 1.0)
+        opt.lambda_idt = cut_cfg.get("lambda_idt", 0.5)
+        opt.num_patches = cut_cfg.get("num_patches", 256)
+        opt.nce_layers = cut_cfg.get("nce_layers", "0,4,8,12,16")
+        opt.nce_T = cut_cfg.get("nce_T", 0.07)
+        opt.use_simplified = cut_cfg.get("use_simplified", False)
+
+        # Misc / bookkeeping
+        opt.checkpoints_dir = cut_cfg.get("checkpoints_dir", "./checkpoints")
+        opt.name = cut_cfg.get("name", "cut_experiment")
+        opt.direction = cut_cfg.get("direction", "AtoB")
+
+        return opt
 
     # --------------------------------------------------------------------
     # Training Loop
     # --------------------------------------------------------------------
     def train(self):
-
         for epoch in range(self.num_epochs):
             for batch in self.dataloader:
 
@@ -71,65 +121,3 @@ class CUTTrainer:
 # --------------------------------------------------------------------
 # Run training directly
 # --------------------------------------------------------------------
-if __name__ == "__main__":
-    import argparse
-    import os
-
-    parser = argparse.ArgumentParser(description="Train CUT model")
-    parser.add_argument("--low", help="Low resolution data folder", default="Data/Low_resolution/CFRP_60_low")
-    parser.add_argument("--high", help="High resolution data folder", default="Data/High_resolution/CFRP_60_high")
-    parser.add_argument("--paired", action="store_true", help="Use paired dataset (default: False)")
-    parser.add_argument("--batch-size", type=int, default=4)
-    parser.add_argument("--lr", type=float, default=0.0002)
-    parser.add_argument("--num-epochs", type=int, default=50)
-    parser.add_argument("--num-workers", type=int, default=4)
-    parser.add_argument("--dry-run", action="store_true", help="Only instantiate trainer and print diagnostics, don't run training")
-
-    args = parser.parse_args()
-
-    config = {
-        "data": {
-            "low_res_dir": args.low,
-            "high_res_dir": args.high,
-            "paired": args.paired,
-        },
-        "training": {
-            "batch_size": args.batch_size,
-            "lr": args.lr,
-            "num_epochs": args.num_epochs,
-            "num_workers": args.num_workers,
-        },
-        "cut": {
-            "lambda_NCE": 1.0,
-            "num_patches": 256,
-        },
-    }
-
-    def count_files(path):
-        try:
-            return sum(1 for _ in os.listdir(path) if os.path.isfile(os.path.join(path, _)))
-        except Exception:
-            return 0
-
-    print("Dataset paths:")
-    print("  low:", config["data"]["low_res_dir"], "-> files:", count_files(config["data"]["low_res_dir"]))
-    print("  high:", config["data"]["high_res_dir"], "-> files:", count_files(config["data"]["high_res_dir"]))
-
-    if args.dry_run :
-        # perform a quick dataset/dataloader sanity check without constructing the model
-        from Utils.dataset import IRImageDataset
-        from Utils.transformers import transform_pipeline
-
-        ds = IRImageDataset(low_dir=config["data"]["low_res_dir"],
-                            high_dir=config["data"]["high_res_dir"],
-                            transform=transform_pipeline,
-                            paired=config["data"].get("paired", False))
-        print("Dry-run: dataset length:", len(ds))
-        sample = ds[0]
-        print("Dry-run: sample keys:", list(sample.keys()))
-
-        trainer = CUTTrainer(config)
-        trainer.train()
-    else:
-        trainer = CUTTrainer(config)
-        trainer.train()
