@@ -1,0 +1,6 @@
+torch
+torchvision
+pillow
+packaging
+numpy
+opencv-python
