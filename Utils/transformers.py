@@ -1,34 +1,19 @@
 from torchvision import transforms
 
-"""
-This module provides a set of common image transformation pipelines
-for training and testing machine learning models using the torchvision library.
+IMAGE_SIZE = 256  # final fixed size
 
-Image Processing / Augmentation Pipelines for IR Images
-Input PIL Images 
-Output torch Tensors [-1,1]    
-"""
-
-
-# IMAGE resolution
-IMAGE_HEIGHT = 256      # default, can be overridden by configration if needed to be changed in future
-IMAGE_WIDTH = 512      # default, can be overridden by configration if needed to be changed in future
-
-# Basic Transformation Pipeline
-transform_pipeline = transforms.Compose ([ 
-    transforms.Resize((IMAGE_HEIGHT, IMAGE_WIDTH)),
+transform_pipeline = transforms.Compose([
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),  # resize all images to 256x256
     transforms.RandomHorizontalFlip(),
-    transforms.RandomRotation(10),      # 10 Degrees Rotation 
+    # transforms.RandomRotation(10),
     transforms.ToTensor(),
-    transforms.Normalize([0.5,], [0.5,])    # normalize to [-1,1]
-    
-    ])
+    transforms.Normalize([0.5], [0.5])  # [-1,1]
+])
 
-# Optional Augmentation Pipeline
-augment_pipeline = transforms.Compose ([ 
-    transforms.Resize((IMAGE_HEIGHT, IMAGE_WIDTH)),
+augment_pipeline = transforms.Compose([
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
     transforms.RandomHorizontalFlip(),
-    transforms.RandomRotation(10),      # 10 Degrees Rotation
+    # transforms.RandomRotation(10),
     transforms.ToTensor(),
-    transforms.Normalize([0.5,], [0.5,])    # normalize to [-1,1]
-    ])
+    transforms.Normalize([0.5], [0.5])
+])
