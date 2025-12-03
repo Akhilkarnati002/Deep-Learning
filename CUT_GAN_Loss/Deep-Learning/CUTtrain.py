@@ -76,7 +76,7 @@ class CUTTrainer:
         fake_B = (fake_B + 1) / 2
         real_B = (real_B + 1) / 2
 
-        # 🔥 Resize real_A to match fake_B resolution
+        #  Resize real_A to match fake_B resolution
         real_A_up = F.interpolate(real_A, size=fake_B.shape[2:], mode='bilinear', align_corners=False)
 
         real_B_up = F.interpolate(real_B, size=fake_B.shape[2:], mode='bilinear', align_corners=False)
@@ -185,7 +185,7 @@ if __name__ == "__main__":
             "lambda_NCE": 0.5,         # more contrastive pressure (but stable)
             "nce_T": 0.1,              # softer contrastive learning
             "num_patches": 96,         # more patches → better features
-            "nce_layers": "4,8,12",
+            "nce_layers": "4,8,12"
         },
         "use_simplified": True,
         "input_nc": 1,  
