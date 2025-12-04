@@ -26,7 +26,7 @@ The following standard libraries are required (installable via `pip`):
 | **`matplotlib`** | Used for generating the **PSNR curve plot** saved in the `results` directory. |
 | **`argparse`** | Used in `CUTtrain.py` to parse command-line arguments for training configuration. |
 
-# 2. Custom Modules (Local Dependencies)
+# Custom Modules (Local Dependencies)
 
 The `CUTtrain.py` file requires the existence and correct placement of the following custom directories and files, which define the model architecture, data handling, and specific losses:
 
