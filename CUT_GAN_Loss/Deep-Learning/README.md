@@ -1,6 +1,6 @@
 # Deep-Learning
 
-# This is the CUT with GAN LOSS With PSNR Graph
+# This is CUT with GAN LOSS Model With PSNR Graph
  In this CUT WITH GAN LOSS we are getting more stable and better results which can be visualize in Gray scale images. However, CUT WGAN model smoothing the images alot due to which we can able to visualize patterns.  
 
 # Main Execution File
