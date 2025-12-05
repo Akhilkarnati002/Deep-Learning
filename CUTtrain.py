@@ -93,7 +93,7 @@ class CUTTrainer:
         fake_B = (fake_B + 1) / 2
         real_B = (real_B + 1) / 2
 
-        # 🔥 Resize real_A to match fake_B resolution
+        # Resize real_A to match fake_B resolution
         real_A_up = F.interpolate(real_A, size=fake_B.shape[2:], mode='bilinear', align_corners=False)
         real_B_up = F.interpolate(real_B, size=fake_B.shape[2:], mode='bilinear', align_corners=False)
 
@@ -151,7 +151,7 @@ class CUTTrainer:
 
                 self.model.optimize_parameters()
 
-                # 🔥 PSNR calculation
+                # PSNR calculation
                 visuals = self.model.get_current_visuals()
                 if visuals.get("fake_B") is not None and visuals.get("real_B") is not None:
                     psnr_val = compute_psnr(visuals["fake_B"], visuals["real_B"])
@@ -196,7 +196,7 @@ class CUTTrainer:
         plt.grid(True)
         plt.savefig(os.path.join(self.results_dir, "PSNR_curve.png"))
         plt.close()
-        print("📈 PSNR graph saved!")
+        print("PSNR graph saved!")
 
 
 # --------------------------------------------------------------------
