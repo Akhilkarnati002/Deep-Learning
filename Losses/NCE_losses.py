@@ -8,7 +8,7 @@ class PatchNCELoss(nn.Module):
     and positive/negative key features (from real image).
     """
 
-    # Note: We do NOT need num_patches in the constructor anymore.
+    
     def __init__(self, temperature: float = 0.07): 
         super().__init__()
         self.temperature = temperature
@@ -26,8 +26,8 @@ class PatchNCELoss(nn.Module):
         """
         B, C, N = queries.shape
         
-        # 1. Reshape and Normalize (Combine B and N dimensions)
-        # Total number of queries/keys in the batch: K = B * N
+        #Reshape and Normalize (Combine B and N dimensions)
+        
         K = B * N
         queries = queries.permute(0, 2, 1).reshape(K, C) # [K, C]
         keys = keys.permute(0, 2, 1).reshape(K, C)       # [K, C]
@@ -36,20 +36,13 @@ class PatchNCELoss(nn.Module):
         queries = F.normalize(queries, dim=1)
         keys = F.normalize(keys, dim=1)
 
-        # 2. Compute full similarity matrix Sim (The Logits)
-        # Sim: [K, K] where K=B*N. 
-        # Query i is compared against ALL K keys (the K-1 negatives and 1 positive).
+        #Compute full similarity matrix Sim (The Logits)
         Sim = torch.matmul(queries, keys.T) / self.temperature
         
-        # 3. Target labels: The positive for query q_i is key_i, which lies on the diagonal.
-        # The target index for query i is simply i (0, 1, 2, ..., K - 1)
-        # K is the correct size for both the input (Sim) batch_size and the target labels.
+        # Target labels: The positive for query q_i is key_i, which lies on the diagonal.
         target = torch.arange(K, device=queries.device)
         
-        # 4. Compute Loss
-        # Sim: logits (K x K), target: true class indices (K)
-        # If B=1 and N=256, then K=256. Sim is [256, 256]. Target is [256].
-        # This resolves the error.
+        # Compute Loss
         loss = self.cross_entropy_loss(Sim, target)
         
         return loss

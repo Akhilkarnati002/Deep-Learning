@@ -106,11 +106,9 @@ class CUTTrainer:
         print(f"Saved triplet → {out_path}")
 
 
-    # ===================================
-    # Saving generated images
-    # ==========================================================
-
     
+    # Saving generated images
+
     def save_generated_images(self, epoch, batch_idx):
         visuals = self.model.get_current_visuals()
         for label, tensor in visuals.items():
@@ -123,7 +121,7 @@ class CUTTrainer:
 
     
     # Training Loop
-    # ==========================================================================
+    
     def train(self):
         print("DEBUG: Starting training loop...")
         for epoch in range(self.num_epochs):

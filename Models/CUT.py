@@ -1,25 +1,14 @@
-# CUT.py
-# Simplified CUTModel for LR -> HR visualization:
-# - Generator: maps LR (domain A) -> fake HR (domain B)
-# - Discriminator: PatchGAN on HR domain
-# - PatchNCE loss between LR and fake HR features
-#
-# NOTE:
-# - DegradationNet has been removed.
-# - This model is meant for LR -> HR *style/texture* translation, NOT true super-resolution.
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from Models.BaseModel import BaseModel
 from Models.Network import define_G, define_D
 from Losses.NCE_losses import PatchNCELoss
-print(">>> CUTTRAIN TOP LEVEL EXECUTED ............")
+print(">>> CUTTRAIN TOP LEVEL EXECUTED")
 
 
-# =================
-# Patch Sampler
-# ==========================
+
+# Patch sampler
 class PatchSampler:
     """
     Sample patches/features from a feature map.
@@ -47,7 +36,7 @@ class PatchSampler:
             perm = torch.stack([torch.randperm(N, device=device)[: self.num_patches] for _ in range(B)])
             idx = perm    # B x num_patches
 
-        # feat_flat: B x C x N -> permute to B x N x C so gather works on dim=1
+        
         feat_t = feat_flat.permute(0, 2, 1)           # B x N x C
         sampled = torch.gather(
             feat_t,
@@ -58,9 +47,8 @@ class PatchSampler:
         return sampled
 
 
-# =======================================================
+
 # CUTModel
-# ==============================================
 class CUTModel(BaseModel):
     """
     Contrastive Unpaired Translation Model (simplified) for LR -> HR:
@@ -75,7 +63,7 @@ class CUTModel(BaseModel):
         
         super().__init__(opt)
 
-        #Basic network params 
+        
         in_nc = int(self.opt.get('input_nc', 1))   # LR input channels (grayscale -> 1)
         out_nc = int(self.opt.get('output_nc', 1)) # HR output channels
         ngf = int(self.opt.get('ngf', 64))
@@ -87,15 +75,15 @@ class CUTModel(BaseModel):
         self.netG = define_G(in_nc, out_nc, ngf)
         self.netD = define_D(out_nc, ndf)
 
-        # Model names used by BaseModel's save/load helpers
+        
         self.model_names = ['G', 'D']
 
-        #  CUT / NCE options 
+        # CUT / NCE options 
         cut_opt = self.opt.get('cut', {}) if isinstance(self.opt.get('cut', {}), dict) else {}
         self.num_patches = int(cut_opt.get('num_patches', 256))
         self.sampler = PatchSampler(self.num_patches)
 
-         #NCE LAYER OF LISTS
+        # List of layer indices in generator to use
         nce_layers_raw = cut_opt.get('nce_layers', '0,4,8,12,16')
         if isinstance(nce_layers_raw, str):
             self.nce_layers = [int(x) for x in nce_layers_raw.split(',') if x.strip() != '']
@@ -118,11 +106,11 @@ class CUTModel(BaseModel):
         else:
             self.criterionNCE = None
 
-        #Losses 
+        # Losses 
         self.criterionGAN = nn.MSELoss().to(self.device)   # LSGAN
-        self.criterionIdt = nn.L1Loss().to(self.device)    # optional identity L1
+        self.criterionIdt = nn.L1Loss().to(self.device)    
 
-        # Loss log names (BaseModel expects attributes 'loss_<name>')
+        
         self.loss_names = []
         self.loss_names.extend(['G_GAN', 'D_real', 'D_fake'])
         if self.lambda_NCE > 0.0:
@@ -138,7 +126,7 @@ class CUTModel(BaseModel):
         # Hyperparameters
         self.lambda_GAN = float(self.opt.get('lambda_GAN', 1.0))
         self.lambda_idt = float(self.opt.get('lambda_idt', 0.0)) if self.use_simplified else 0.0
-        self.lambda_L1 = float(self.opt.get('lambda_L1', 5.0))   # stronger pixel consistency
+        self.lambda_L1 = float(self.opt.get('lambda_L1', 5.0))   
         self.lambda_FM = float(self.opt.get('lambda_FM', 2.0))
         self.lambda_FM = float(self.opt.get('lambda_FM', 0.0))
         if self.lambda_FM > 0:
@@ -167,7 +155,7 @@ class CUTModel(BaseModel):
         self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=training_lr, betas=(0.5, 0.999))
         self.optimizer_D = torch.optim.Adam(self.netD.parameters(), lr=training_lr_D, betas=(0.5, 0.999))
 
-        # Registering  optimizers for BaseModel
+        # Register optimizers for BaseModel
         self.optimizers = [self.optimizer_G, self.optimizer_D]
 
         # Placeholders for data
@@ -175,10 +163,12 @@ class CUTModel(BaseModel):
         self.real_B = None   # HR target
         self.fake_B = None   # generated HR-like image
 
-        # Visuals used by BaseModel.get_current_visuals
+         
         self.visual_names = ['real_A', 'fake_B', 'real_B']
 
-       def move_networks_to_device(self):
+    
+    # Utility method for trainer to move networks
+    def move_networks_to_device(self):
         """Explicitly move networks to self.device (called from trainer)."""
         self.netG.to(self.device)
         self.netD.to(self.device)
@@ -186,9 +176,8 @@ class CUTModel(BaseModel):
             self.criterionNCE.to(self.device)
         self.criterionIdt.to(self.device)
 
-    #==============================
-    # Required data API hooks
-   #============================ 
+    
+    
     def set_input(self, input):
         """
         input: dict with keys 'A', 'B' (and optionally 'A_paths', 'B_paths').
@@ -223,14 +212,13 @@ class CUTModel(BaseModel):
             'real_B': self.real_B.detach() if self.real_B is not None else None,
         }
 
-    # ==============================================
+    
     # Feature extraction for NCE
-    # ======================================================
     def _extract_generator_features(self, x, layer_ids):
         feats = {}
         current = x
 
-        # Trying common patterns for ResNet/G style generators
+        # Trying common patterns for ResNet /G style generators
         if hasattr(self.netG, 'model'):
             module_seq = self.netG.model
         elif isinstance(self.netG, nn.Sequential):
@@ -250,7 +238,7 @@ class CUTModel(BaseModel):
           src: real_A (LR input)
           tgt: fake_B (HR-like output)
         """
-        # Determining how many layers we have
+        # Determine how many layers we have
         if hasattr(self.netG, 'model'):
             model_len = len(self.netG.model)
         else:
@@ -261,14 +249,12 @@ class CUTModel(BaseModel):
 
         layer_ids = [i for i in self.nce_layers if i < model_len]
         if len(layer_ids) == 0:
-            # fallback: use last layer if nothing valid
+            # fallback use last layer if nothing valid
             layer_ids = [model_len - 1]
 
         # Extract features
-            # fake / query
-            # real / key
-        feat_q_dict = self._extract_generator_features(tgt, layer_ids)  
-        feat_k_dict = self._extract_generator_features(src, layer_ids)  
+        feat_q_dict = self._extract_generator_features(tgt, layer_ids)  # fake / query
+        feat_k_dict = self._extract_generator_features(src, layer_ids)  # real / key
 
         total_loss = 0.0
         for lid in layer_ids:
@@ -285,9 +271,8 @@ class CUTModel(BaseModel):
         total_loss = total_loss / float(len(layer_ids))
         return total_loss
 
-    # =======================================================
+    
     # GAN helpers (WGAN)
-    # ===============================================================
     def _compute_G_gan_loss(self, fake):
         pred_fake = self.netD(fake)
         return -pred_fake.mean()    # WGAN generator loss
@@ -304,9 +289,9 @@ class CUTModel(BaseModel):
         loss_fake =  pred_fake.mean()
 
         # Gradient penalty on detached fake
-        gp = self._gradient_penalty(real, fake_detached) * 10.0  # λ_GP = 10
+        gp = self._gradient_penalty(real, fake_detached) * 10.0  
 
-        
+        # log for printing
         self.loss_D_real = loss_real.item()
         self.loss_D_fake = loss_fake.item()
 
@@ -336,10 +321,9 @@ class CUTModel(BaseModel):
         gp = ((gradient_norm - 1) ** 2).mean()
         return gp
 
-    
-    # ====================================================================
+
+
     # Discriminator feature extraction for FM loss
-    # =====================================================================
     def _disc_features(self, x, detach=False):
         """
         Pass x through D and collect intermediate feature maps
@@ -347,10 +331,11 @@ class CUTModel(BaseModel):
         """
         feats = []
         h = x
-        modules = self.netD.model  
+        modules = self.netD.model  # Sequential
 
         for i, layer in enumerate(modules):
             h = layer(h)
+            # skip last conv that outputs logits
             if i == len(modules) - 1:
                 break
             feats.append(h.detach() if detach else h)
@@ -361,10 +346,10 @@ class CUTModel(BaseModel):
         L1 distance between D's intermediate features for fake and real.
         Only gradients through the FAKE path (real is detached).
         """
-        # real features No gradients
+        # real features: no gradient
         with torch.no_grad():
             feats_real = self._disc_features(real, detach=True)
-        # fake features  keeping gradients
+        # fake features: keep gradient
         feats_fake = self._disc_features(fake, detach=False)
 
         loss = 0.0
@@ -373,21 +358,21 @@ class CUTModel(BaseModel):
         return loss
 
 
-    # ==================================================
+    
     # Training step
-    # =========================================================
+    
     def optimize_parameters(self):
-
+    
         self.forward()
 
-        #  Update D 
+        
         self.netD.train()
         self.optimizer_D.zero_grad()
         loss_D = self._compute_D_loss(self.fake_B, self.real_B)
         loss_D.backward()
         self.optimizer_D.step()
 
-        #  Update G 
+        
         self.netG.train()
         self.optimizer_G.zero_grad()
 
@@ -400,7 +385,7 @@ class CUTModel(BaseModel):
         else:
             loss_NCE_tensor = torch.zeros(1, device=self.device)
 
-        # Pixel wise L1 loss between fake HR and real HR
+        # Pixel-wise L1 loss between fake HR and real HR
         loss_L1_tensor = F.l1_loss(self.fake_B, self.real_B) * self.lambda_L1
      
 
@@ -408,7 +393,7 @@ class CUTModel(BaseModel):
         
         loss_FM_tensor = self.compute_feature_matching(self.fake_B, self.real_B) * self.lambda_FM
        
-        #  identity loss – currently off
+        #identity loss – currently off
         loss_idt_tensor = F.l1_loss(self.netG(self.real_B), self.real_B) * 5.0
 
 
@@ -424,7 +409,7 @@ class CUTModel(BaseModel):
         loss_G_total.backward()
         self.optimizer_G.step()
 
-        # Logging
+        #Logging 
         self.loss_G_GAN = float(loss_G_gan_tensor.item())
         self.loss_NCE   = float(loss_NCE_tensor.item())
         self.loss_L1    = float(loss_L1_tensor.item())

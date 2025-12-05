@@ -62,7 +62,7 @@ class PatchNCELoss(nn.Module):
         
         # Mask out diagonal entries (self-similarity)
         diagonal = torch.eye(patches_per_image, device=feat_q.device, dtype=self.mask_dtype)[None, :, :]
-        l_neg.masked_fill_(diagonal, -10.0)  # effectively remove positive logit from negatives
+        l_neg.masked_fill_(diagonal, -10.0)  
 
 
         
