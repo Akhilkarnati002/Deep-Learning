@@ -2,9 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# ----------------------------
+
 # Helper Block
-# ----------------------------
 class ResnetBlock(nn.Module):
     """Residual Block with two convolutional layers and skip connection."""
     def __init__(self, dim):
@@ -22,9 +21,8 @@ class ResnetBlock(nn.Module):
     def forward(self, x):
         return x + self.conv_block(x)
 
-# ----------------------------
+
 # Generator
-# ----------------------------
 class ResnetGenerator(nn.Module):
     """
     ResNet-based Generator for image-to-image translation
@@ -82,9 +80,8 @@ class ResnetGenerator(nn.Module):
         out = F.interpolate(out, size=(256, 256), mode='bilinear', align_corners=False)
         return out
 
-# ----------------------------
+
 # PatchGAN Discriminator
-# ----------------------------
 class PatchGANDiscriminator(nn.Module):
     """70x70 PatchGAN Discriminator"""
     def __init__(self, input_nc=1, ndf=64):
@@ -114,9 +111,8 @@ class PatchGANDiscriminator(nn.Module):
     def forward(self, input):
         return self.model(input)
 
-# ----------------------------
+
 # Weight Initialization
-# ----------------------------
 def init_weights(net, init_type='normal', init_gain=0.02):
     def init_func(m):
         classname = m.__class__.__name__
@@ -139,9 +135,7 @@ def init_weights(net, init_type='normal', init_gain=0.02):
                 nn.init.constant_(m.bias, 0.0)
     net.apply(init_func)
 
-# ----------------------------
 # Factory functions
-# ----------------------------
 def define_G(input_nc=1, output_nc=1, ngf=64, n_blocks=9):
     net = ResnetGenerator(input_nc, output_nc, ngf, n_blocks)
     init_weights(net)

@@ -4,8 +4,9 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 from datetime import datetime
-from torchvision.utils import make_grid
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
+from math import log10
 from Utils.dataset import IRImageDataset
 from Utils.transformers import transform_pipeline
 from Models.CUT import CUTModel
@@ -60,6 +61,19 @@ class CUTTrainer:
         os.makedirs(self.real_A_dir, exist_ok=True)
         os.makedirs(self.real_B_dir, exist_ok=True)
 
+        # PSNR logging
+        self.psnr_values = []
+
+
+    #  PSNR COMPUTATION 
+    def calculate_psnr(self, fake, real):
+        """ Compute PSNR between Fake_B and Real_B """
+        mse = torch.mean((fake - real) ** 2)
+        if mse == 0:
+            return 100
+        psnr = 20 * log10(1.0 / torch.sqrt(mse))  # image range normalized [0,1]
+        return psnr
+
 
     def save_triplet(self, epoch, batch_idx):
         visuals = self.model.get_current_visuals()
@@ -76,9 +90,8 @@ class CUTTrainer:
         fake_B = (fake_B + 1) / 2
         real_B = (real_B + 1) / 2
 
-        #  Resize real_A to match fake_B resolution
+        # Resize real_A and real_B to match fake_B resolution
         real_A_up = F.interpolate(real_A, size=fake_B.shape[2:], mode='bilinear', align_corners=False)
-
         real_B_up = F.interpolate(real_B, size=fake_B.shape[2:], mode='bilinear', align_corners=False)
 
         # Now concatenate
@@ -87,9 +100,8 @@ class CUTTrainer:
         out_path = os.path.join(self.results_dir, f"triplet_epoch{epoch+1}.png")
         save_image(triplet, out_path)
         print(f"Saved triplet → {out_path}")
-    # --------------------------------------------------------------------
-    # Save generated images
-    # --------------------------------------------------------------------
+
+
     def save_generated_images(self, epoch, batch_idx):
         visuals = self.model.get_current_visuals()
         for label, tensor in visuals.items():
@@ -99,13 +111,16 @@ class CUTTrainer:
                 img_path = os.path.join(folder, img_filename)
                 save_image((tensor[i] + 1) / 2, img_path)  # scale [-1,1] to [0,1]
 
-    # --------------------------------------------------------------------
-    # Training Loop
-    # --------------------------------------------------------------------
+
+    
+    # Training Loop + PSNR Logging
+    
     def train(self):
         print("DEBUG: Starting training loop...")
         for epoch in range(self.num_epochs):
             print(f"Epoch [{epoch+1}/{self.num_epochs}]")
+            epoch_psnr = []
+
             for batch_idx, batch in enumerate(self.dataloader):
                 low_res_tensor = batch.get("low_res")
                 high_res_tensor = batch.get("high_res")
@@ -117,42 +132,68 @@ class CUTTrainer:
                 low = low_res_tensor.to(self.device)
                 high = high_res_tensor.to(self.device)
 
+                # Add noise (stabilizing)
+                batch['high_res'] = batch['high_res'] + 0.02 * torch.randn_like(batch['high_res'])
+                batch['low_res'] = batch['low_res'] + 0.02 * torch.randn_like(batch['low_res'])
+
                 # Set input for model
-                input_dict = {
+                self.model.set_input({
                     "A": low,
                     "B": high,
                     "A_paths": batch.get("low_path"),
                     "B_paths": batch.get("high_path")
-                }
-                self.model.set_input(input_dict)
-                batch['high_res'] = batch['high_res'] + 0.02 * torch.randn_like(batch['high_res'])
-                batch['low_res'] = batch['low_res'] + 0.02 * torch.randn_like(batch['low_res'])
+                })
+
                 # Run training step
                 self.model.optimize_parameters()
 
-                # Save images in organized folders
-                if batch_idx == len(self.dataloader) - 1:   
+                # ---- PSNR CALCULATION ----
+                visuals = self.model.get_current_visuals()
+                fake_B = (visuals["fake_B"] + 1) / 2
+                real_B = (visuals["real_B"] + 1) / 2
+                psnr = self.calculate_psnr(fake_B, real_B)
+                epoch_psnr.append(psnr)
+
+                # Save triplet at last batch
+                if batch_idx == len(self.dataloader) - 1:
                     self.save_triplet(epoch, batch_idx)
+
+            # Mean PSNR for epoch
+            mean_psnr = sum(epoch_psnr) / len(epoch_psnr)
+            self.psnr_values.append(mean_psnr)
+            print(f"Epoch [{epoch+1}] Mean PSNR: {mean_psnr:.4f} dB")
 
             # Log losses
             losses = self.model.get_current_losses()
             g_loss = losses.get("G", losses.get("G_GAN", 0.0))
             d_loss = losses.get("D_real", 0.0) + losses.get("D_fake", 0.0)
             nce_loss = losses.get("NCE", losses.get("G_idt", 0.0))
+            print(f"G_loss: {g_loss:.4f}, D_loss: {d_loss:.4f}, NCE/IDT_loss: {nce_loss:.4f}")
 
-            print(f"Epoch [{epoch+1}/{self.num_epochs}] "
-                  f"G_loss: {g_loss:.4f}, D_loss: {d_loss:.4f}, NCE/IDT_loss: {nce_loss:.4f}")
-
+        #Save PSNR graph after training 
+        self.plot_psnr_curve()
         print(f"DEBUG: Training complete. Results saved in {self.results_dir}")
 
 
-# --------------------------------------------------------------------
-# Entry point
-# --------------------------------------------------------------------
+    #  PLOT PSNR 
+    def plot_psnr_curve(self):
+        plt.figure(figsize=(10, 5))
+        plt.plot(range(1, len(self.psnr_values) + 1), self.psnr_values, marker='o')
+        plt.title("PSNR over Epochs")
+        plt.xlabel("Epoch")
+        plt.ylabel("PSNR (dB)")
+        plt.grid(True)
+        img_path = os.path.join(self.results_dir, "psnr_curve.png")
+        plt.savefig(img_path)
+        plt.close()
+        print(f"PSNR curve saved → {img_path}")
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train CUT model")
-    parser.add_argument("--low", default="/zhome/75/4/219248/DeepLearning Project/Deep-Learning/Data/Cropped_dataset/Low_res_cropped_specimen", help="Low resolution data folder")
-    parser.add_argument("--high", default="/zhome/75/4/219248/DeepLearning Project/Deep-Learning/Data/Cropped_dataset/High_res_cropped_specimen", help="High resolution data folder")
+    parser.add_argument("--low", default="/zhome/e5/7/219270/Deep-Learning/CUT_GAN_Loss/Deep-Learning/Data/Cropped_dataset/Low_res_cropped_specimen", help="Low resolution data folder")
+    parser.add_argument("--high", default="/zhome/e5/7/219270/Deep-Learning/CUT_GAN_Loss/Deep-Learning/Data/Cropped_dataset/High_res_cropped_specimen", help="High resolution data folder")
     parser.add_argument("--paired", action="store_true", help="Use paired dataset")
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--lr", type=float, default=0.0002)
@@ -172,23 +213,21 @@ if __name__ == "__main__":
         },
         "training": {
             "batch_size": args.batch_size,
-            "lr": 0.0001,              # ↓ G lr
-            "lr_D": 0.00001,           # ↓↓ D lr (10× smaller!)
+            "lr": 0.0001,
+            "lr_D": 0.00001,
             "num_epochs": args.num_epochs,
             "num_workers": args.num_workers,
             "use_cpu": args.cpu,
             "lambda_idt": 10,
-            
-            
         },
         "cut": {
-            "lambda_NCE": 0.5,         # more contrastive pressure (but stable)
-            "nce_T": 0.1,              # softer contrastive learning
-            "num_patches": 96,         # more patches → better features
+            "lambda_NCE": 0.5,
+            "nce_T": 0.1,
+            "num_patches": 96,
             "nce_layers": "4,8,12"
         },
         "use_simplified": True,
-        "input_nc": 1,  
+        "input_nc": 1,
         "output_nc": 1,
         "lambda_L1": 10.0,
     }

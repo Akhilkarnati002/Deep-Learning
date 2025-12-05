@@ -1,27 +1,14 @@
-# CUT.py
-# Simplified CUTModel for LR -> HR visualization:
-# - Generator: maps LR (domain A) -> fake HR (domain B)
-# - Discriminator: PatchGAN on HR domain
-# - PatchNCE loss between LR and fake HR features
-#
-# NOTE:
-# - DegradationNet has been removed.
-# - This model is meant for LR -> HR *style/texture* translation, NOT true super-resolution.
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-# Project imports
 from Models.BaseModel import BaseModel
 from Models.Network import define_G, define_D
 from Losses.NCE_losses import PatchNCELoss
 print(">>> CUTTRAIN TOP LEVEL EXECUTED")
 
 
-# -------------------------
+
 # Patch sampler
-# -------------------------
 class PatchSampler:
     """
     Sample patches/features from a feature map.
@@ -60,9 +47,8 @@ class PatchSampler:
         return sampled
 
 
-# -------------------------
+
 # CUTModel
-# -------------------------
 class CUTModel(BaseModel):
     """
     Contrastive Unpaired Translation Model (simplified) for LR -> HR:
@@ -120,11 +106,11 @@ class CUTModel(BaseModel):
         else:
             self.criterionNCE = None
 
-        # ---- Losses ----
+
         self.criterionGAN = nn.MSELoss().to(self.device)   # LSGAN
         self.criterionIdt = nn.L1Loss().to(self.device)    # optional identity L1
 
-        # Loss log names (BaseModel expects attributes 'loss_<name>')
+        # Loss log names 
         self.loss_names = []
         self.loss_names.extend(['G_GAN', 'D_real', 'D_fake'])
         if self.lambda_NCE > 0.0:
@@ -167,9 +153,8 @@ class CUTModel(BaseModel):
         # Visuals (used by BaseModel.get_current_visuals)
         self.visual_names = ['real_A', 'fake_B', 'real_B']
 
-    # -------------------------
+    
     # Utility method for trainer to move networks
-    # -------------------------
     def move_networks_to_device(self):
         """Explicitly move networks to self.device (called from trainer)."""
         self.netG.to(self.device)
@@ -179,9 +164,8 @@ class CUTModel(BaseModel):
         self.criterionGAN.to(self.device)
         self.criterionIdt.to(self.device)
 
-    # -------------------------
+    
     # Required data API hooks
-    # -------------------------
     def set_input(self, input):
         """
         input: dict with keys 'A', 'B' (and optionally 'A_paths', 'B_paths').
@@ -216,9 +200,8 @@ class CUTModel(BaseModel):
             'real_B': self.real_B.detach() if self.real_B is not None else None,
         }
 
-    # -------------------------
+    
     # Feature extraction for NCE
-    # -------------------------
     def _extract_generator_features(self, x, layer_ids):
         feats = {}
         current = x
@@ -276,9 +259,8 @@ class CUTModel(BaseModel):
         total_loss = total_loss / float(len(layer_ids))
         return total_loss
 
-    # -------------------------
+    
     # GAN helpers (LSGAN)
-    # -------------------------
     def _compute_G_gan_loss(self, fake):
         pred_fake = self.netD(fake)
         target_real = torch.ones_like(pred_fake, device=pred_fake.device)
@@ -298,9 +280,8 @@ class CUTModel(BaseModel):
 
         return 0.5 * (loss_fake + loss_real)
 
-    # -------------------------
+    
     # Training step
-    # -------------------------
     def optimize_parameters(self):
         # Forward: real_A -> fake_B
         self.forward()
