@@ -2,18 +2,18 @@ import os
 import torch
 from collections import OrderedDict
 from abc import ABC, abstractmethod
-from . import Network  # Ensure Network.py is imported correctly
+from . import Network  
 
 
 class BaseModel(ABC):
     """
     Abstract Base Class for models.
     Subclasses must implement:
-        - set_input
-        - forward
-        - optimize_parameters
-        - compute_visuals
-        - modify_commandline_options (optional)
+         set_input
+         forward
+         optimize_parameters
+         compute_visuals
+         modify_commandline_options 
     """
 
     def __init__(self, opt):
@@ -92,7 +92,7 @@ class BaseModel(ABC):
             save_filename = f'{epoch_label}_net_{name}.pth'
             save_path = os.path.join(self.save_dir, save_filename)
 
-            # Handle DataParallel
+            
             if isinstance(net, torch.nn.DataParallel):
                 net_to_save = net.module
             else:
