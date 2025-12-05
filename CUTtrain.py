@@ -30,11 +30,11 @@ class CUTTrainer:
     """Trainer class for the CUT model."""
 
     def __init__(self, config):
-        # Device Selection
+        
         self.device = torch.device("cpu") if config["training"].get("use_cpu", False) \
             else torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # Load Dataset
+        # Loading Dataset
         dataset = IRImageDataset(
             low_dir=config["data"]["low_res_dir"],
             high_dir=config["data"]["high_res_dir"],
@@ -61,7 +61,7 @@ class CUTTrainer:
 
         self.num_epochs = config["training"]["num_epochs"]
 
-        # Results folder setup
+        
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         self.results_dir = os.path.join("results", f"CUTModel_{timestamp}")
         os.makedirs(self.results_dir, exist_ok=True)
@@ -74,6 +74,8 @@ class CUTTrainer:
         os.makedirs(self.real_A_dir, exist_ok=True)
         os.makedirs(self.real_B_dir, exist_ok=True)
 
+
+        
         # PSNR storage
         self.psnr_history = []
 
@@ -104,9 +106,11 @@ class CUTTrainer:
         print(f"Saved triplet → {out_path}")
 
 
-    # --------------------------------------------------------------------
-    # Save generated images
-    # --------------------------------------------------------------------
+    # ===================================
+    # Saving generated images
+    # ==========================================================
+
+    
     def save_generated_images(self, epoch, batch_idx):
         visuals = self.model.get_current_visuals()
         for label, tensor in visuals.items():
@@ -117,9 +121,9 @@ class CUTTrainer:
                 save_image((tensor[i] + 1) / 2, img_path)
 
 
-    # --------------------------------------------------------------------
+    
     # Training Loop
-    # --------------------------------------------------------------------
+    # ==========================================================================
     def train(self):
         print("DEBUG: Starting training loop...")
         for epoch in range(self.num_epochs):
@@ -174,14 +178,10 @@ class CUTTrainer:
             print(f"Epoch [{epoch+1}/{self.num_epochs}] "
                   f"G_loss: {g_loss:.4f}, D_loss: {d_loss:.4f}, NCE/IDT_loss: {nce_loss:.4f}, PSNR: {avg_psnr:.2f} dB")
 
-        # Save PSNR log + graph
+        # Save PSNR log  with graph
         self.save_psnr_results()
         print(f"DEBUG: Training complete. Results saved in {self.results_dir}")
 
-
-    # --------------------------------------------------------------------
-    # Save PSNR stats + Plot
-    # --------------------------------------------------------------------
     def save_psnr_results(self):
         file_path = os.path.join(self.results_dir, "PSNR_log.txt")
         with open(file_path, "w") as f:
@@ -199,9 +199,6 @@ class CUTTrainer:
         print("PSNR graph saved!")
 
 
-# --------------------------------------------------------------------
-# Entry point  
-# --------------------------------------------------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train CUT model")
     parser.add_argument("--low", default="/zhome/e5/7/219270/Deep-Learning/Data/Cropped_dataset/Low_res_cropped_specimen", help="Low resolution data folder")
