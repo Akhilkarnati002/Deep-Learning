@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# ----------------------------
+# =======================================
 # Residual Block
-# ----------------------------
+# =========================================
 class ResnetBlock(nn.Module):
     """Residual block with two 3x3 convs and a skip connection."""
     def __init__(self, dim):
@@ -23,9 +23,9 @@ class ResnetBlock(nn.Module):
         return x + self.conv_block(x)
 
 
-# ----------------------------
-# ResNet Generator (standard, stable)
-# ----------------------------
+# ===================================
+# ResNet Generator Standard & Stable
+# ======================================
 class ResnetGenerator(nn.Module):
     """
     Standard ResNet-based generator used in CycleGAN/CUT.
@@ -87,9 +87,9 @@ class ResnetGenerator(nn.Module):
         return self.model(x)
 
 
-# ----------------------------
-# PatchGAN Discriminator (unchanged)
-# ----------------------------
+# ==========================================
+# PatchGAN Discriminator 
+# =============================================
 class PatchGANDiscriminator(nn.Module):
     """70x70 PatchGAN Discriminator"""
     def __init__(self, input_nc=3, ndf=64):
@@ -120,9 +120,9 @@ class PatchGANDiscriminator(nn.Module):
         return self.model(input)
 
 
-# ----------------------------
-# Weight Initialization
-# ----------------------------
+# ================================
+# Weights Initialization
+# =======================================
 def init_weights(net, init_type='normal', init_gain=0.02):
     def init_func(m):
         classname = m.__class__.__name__
@@ -147,9 +147,8 @@ def init_weights(net, init_type='normal', init_gain=0.02):
     net.apply(init_func)
 
 
-# ----------------------------
+
 # Factory functions
-# ----------------------------
 def define_G(input_nc=3, output_nc=3, ngf=64, n_blocks=9):
     net = ResnetGenerator(input_nc, output_nc, ngf, n_blocks)
     init_weights(net)
