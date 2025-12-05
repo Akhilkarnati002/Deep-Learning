@@ -1,6 +1,7 @@
 # CUT_WGAN Model Trainer Readme
 
-This repository implements the training process for a **(CUT) Contrastive Unpaired Translation**  with **(WGAN) Wasserstein Generative Adversarial Network** model, likely for an image-to-image translation task such as **Super-Resolution** (translating low-resolution images to high-resolution ones, as suggested by the `PSNR` metric).
+This repository implements the training process for a **(CUT) Contrastive Unpaired Translation**  with **(WGAN) Wasserstein Generative Adversarial Network** model, However, we are getting smooth images due to which patterns cannot be observed. 
+Likely for an image-to-image translation task such as **Super-Resolution** (translating low-resolution images to high-resolution ones, as suggested by the `PSNR` metric).
 
 ---
 
